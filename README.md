@@ -1,4 +1,4 @@
-# MERN RAG Chatbot
+# SAGEVAULT- MERN RAG Chatbot
 
 This project is a Knowledge Management Platform built using the MERN stack (MongoDB, Express.js, React, Node.js) with RAG (Retrieval Augmented Generation) capabilities for conversational AI.
 
