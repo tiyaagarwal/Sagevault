@@ -34,12 +34,14 @@ Before you begin, ensure you have the following installed:
     ```bash
     npm install
     ```
-3.  Create a `.env` file in the `backend` directory and add your environment variables. A `.env.example` file might be provided for reference.
+3.  Create a `.env` file in the `backend` directory — see [`backend/sample.env`](backend/sample.env) for the full list of variables:
     ```
-    MONGO_URI=your_mongodb_connection_string
-    JWT_SECRET=your_jwt_secret
+    MONGODB_URL=your_mongodb_connection_string
+    JWT_SECRET=your_jwt_secret          # random string, 32+ characters
     GOOGLE_API_KEY=your_google_gemini_api_key
+    FRONTEND_URL=http://localhost:5173  # comma-separated if you need more than one origin
     ```
+    All four are required — the server exits immediately at boot with a clear error if any are missing, rather than failing confusingly on the first request.
 4.  Start the backend server:
     ```bash
     npm run dev
@@ -97,11 +99,17 @@ This approach ensures that the AI responses are grounded in the organization's k
 
 Detailed API documentation can be found [here](backend/API_DOCUMENTATION.md) or by exploring the `backend/routes` and `backend/controllers` directories. Key endpoints include:
 
--   `/api/v1/auth/register`: User registration.
--   `/api/v1/auth/login`: User login.
+-   `/api/v1/auth/register`: User registration (rate-limited).
+-   `/api/v1/auth/login`: User login (rate-limited).
 -   `/api/v1/auth/profile`: Get user profile.
--   `/api/v1/documents/upload`: Upload documents.
--   `/api/v1/documents`: Get list of documents.
--   `/api/v1/chat/message`: Send message to conversational AI.
+-   `/api/v1/document/upload`: Upload a document.
+-   `/api/v1/document`: List documents.
+-   `/api/v1/chat/sessions`: Create a chat session / list sessions.
+-   `/api/v1/chat/sessions/:sessionId/messages`: Send a message to the conversational AI.
+-   `/health`: Liveness check, returns `{ status: "ok", uptime }`.
 
 For more details, refer to the source code in the `backend` directory.
+
+## Known issues
+
+- `npm audit` currently reports vulnerabilities in the LangChain dependency chain (`@langchain/community`, `langsmith`, transitively `uuid`) — mostly SSRF/prototype-pollution advisories in loaders and tracing this project doesn't use directly. A fix is available (`npm audit fix --force`) but it's a breaking major-version bump across the LangChain packages, so it hasn't been applied without re-testing the RAG pipeline against the new API surface. Tracked as follow-up work rather than a blind upgrade.
