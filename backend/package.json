@@ -1,20 +1,23 @@
 {
-  "name": "backend",
+  "name": "sagevault-backend",
   "version": "1.0.0",
   "main": "index.js",
   "scripts": {
+    "start": "node index.js",
     "dev": "nodemon index.js"
   },
-  "keywords": [],
+  "keywords": ["rag", "mern", "knowledge-management"],
   "author": "",
   "license": "ISC",
-  "description": "",
+  "description": "Express/MongoDB backend for SageVault, with a LangChain + Gemini RAG pipeline",
+  "engines": {
+    "node": ">=18"
+  },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@langchain/community": "^0.3.50",
     "@langchain/core": "^0.3.68",
     "@langchain/google-genai": "^0.2.16",
-    "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
     "dotenv": "^16.4.5",
