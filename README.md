@@ -1,5 +1,7 @@
 # SAGEVAULT- MERN RAG Chatbot
 
+[![Backend tests](https://github.com/tiyaagarwal/Sagevault/actions/workflows/backend-tests.yml/badge.svg)](https://github.com/tiyaagarwal/Sagevault/actions/workflows/backend-tests.yml)
+
 This project is a Knowledge Management Platform built using the MERN stack (MongoDB, Express.js, React, Node.js) with RAG (Retrieval Augmented Generation) capabilities for conversational AI.
 
 ## Table of Contents
