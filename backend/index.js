@@ -13,8 +13,19 @@ const app = express();
 // Connect to MongoDB
 connectDB();
 
-// CORS middleware to allow requests from the frontend
-app.use(cors());
+// CORS middleware — restricted to the configured frontend origin(s) rather
+// than reflecting any origin, since this API carries auth tokens and user data.
+const allowedOrigins = (process.env.FRONTEND_URL || 'http://localhost:5173')
+  .split(',')
+  .map((origin) => origin.trim());
+app.use(cors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Not allowed by CORS'));
+  },
+}));
 
 app.use(express.json());
 
