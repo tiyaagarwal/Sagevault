@@ -43,7 +43,7 @@ Before you begin, ensure you have the following installed:
     GOOGLE_API_KEY=your_google_gemini_api_key
     FRONTEND_URL=http://localhost:5173  # comma-separated if you need more than one origin
     ```
-    All four are required — the server exits immediately at boot with a clear error if any are missing, rather than failing confusingly on the first request.
+    `MONGODB_URL`, `JWT_SECRET`, and `GOOGLE_API_KEY` are required — the server exits immediately at boot with a clear error if any of these three are missing, rather than failing confusingly on the first request. `FRONTEND_URL` is optional and defaults to `http://localhost:5173` if unset.
 4.  Start the backend server:
     ```bash
     npm run dev
