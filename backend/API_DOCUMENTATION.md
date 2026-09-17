@@ -97,24 +97,30 @@ This document provides a detailed overview of the API endpoints exposed by the b
 
 ### 1. Upload Document
 
--   **Endpoint**: `/documents/upload`
+-   **Endpoint**: `/document/upload`
 -   **Method**: `POST`
 -   **Description**: Uploads a new document to the system. Supports `multipart/form-data`.
 -   **Headers**:
     -   `Authorization`: `Bearer <jwt_token>`
     -   `Content-Type`: `multipart/form-data`
 -   **Request Body (Form Data)**:
-    -   `document`: (File) The document file to upload (PDF, DOCX, TXT, MD).
--   **Success Response (200 OK)**:
+    -   `file`: (File) The document file to upload (PDF, DOCX, or plain text).
+-   **Success Response (201 Created)**:
     ```json
     {
-      "message": "Document uploaded successfully",
-      "document": {
-        "_id": "<document_id>",
-        "filename": "example.pdf",
-        "user": "<user_id>",
-        "uploadDate": "2023-01-01T12:00:00.000Z"
-      }
+      "id": "<document_id>",
+      "filename": "example.pdf",
+      "metadata": {
+        "fileType": "pdf",
+        "fileSize": "10240"
+      },
+      "createdAt": "2023-01-01T12:00:00.000Z"
+    }
+    ```
+-   **Error Response (400 Bad Request)**:
+    ```json
+    {
+      "error": "No file uploaded"
     }
     ```
 -   **Error Response (500 Internal Server Error)**:
@@ -126,27 +132,30 @@ This document provides a detailed overview of the API endpoints exposed by the b
 
 ### 2. Get All Documents
 
--   **Endpoint**: `/documents`
+-   **Endpoint**: `/document`
 -   **Method**: `GET`
--   **Description**: Retrieves a list of all documents uploaded by the authenticated user.
+-   **Description**: Retrieves a paginated list of documents uploaded by the authenticated user.
 -   **Headers**:
     -   `Authorization`: `Bearer <jwt_token>`
+-   **Query Parameters** (all optional):
+    -   `page`: Page number (default `1`).
+    -   `limit`: Results per page (default `10`).
+    -   `search`: Full-text search over document content.
 -   **Success Response (200 OK)**:
     ```json
-    [
-      {
-        "_id": "<document_id_1>",
-        "filename": "document1.pdf",
-        "user": "<user_id>",
-        "uploadDate": "2023-01-01T12:00:00.000Z"
-      },
-      {
-        "_id": "<document_id_2>",
-        "filename": "document2.docx",
-        "user": "<user_id>",
-        "uploadDate": "2023-01-02T12:00:00.000Z"
-      }
-    ]
+    {
+      "documents": [
+        {
+          "_id": "<document_id_1>",
+          "filename": "document1.pdf",
+          "userId": "<user_id>",
+          "metadata": { "fileType": "pdf", "fileSize": "10240" },
+          "createdAt": "2023-01-01T12:00:00.000Z"
+        }
+      ],
+      "totalPages": 1,
+      "currentPage": 1
+    }
     ```
 -   **Error Response (401 Unauthorized)**:
     ```json
@@ -157,9 +166,9 @@ This document provides a detailed overview of the API endpoints exposed by the b
 
 ### 3. Get Document by ID
 
--   **Endpoint**: `/documents/:id`
+-   **Endpoint**: `/document/:id`
 -   **Method**: `GET`
--   **Description**: Retrieves a specific document by its ID.
+-   **Description**: Retrieves a specific document by its ID, including its extracted content.
 -   **Headers**:
     -   `Authorization`: `Bearer <jwt_token>`
 -   **Path Parameters**:
@@ -169,8 +178,9 @@ This document provides a detailed overview of the API endpoints exposed by the b
     {
       "_id": "<document_id>",
       "filename": "example.pdf",
-      "user": "<user_id>",
-      "uploadDate": "2023-01-01T12:00:00.000Z",
+      "userId": "<user_id>",
+      "metadata": { "fileType": "pdf", "fileSize": "10240" },
+      "createdAt": "2023-01-01T12:00:00.000Z",
       "content": "Extracted text content of the document..."
     }
     ```
@@ -183,9 +193,9 @@ This document provides a detailed overview of the API endpoints exposed by the b
 
 ### 4. Delete Document
 
--   **Endpoint**: `/documents/:id`
+-   **Endpoint**: `/document/:id`
 -   **Method**: `DELETE`
--   **Description**: Deletes a specific document by its ID.
+-   **Description**: Deletes a specific document (and its stored chunks) by its ID.
 -   **Headers**:
     -   `Authorization`: `Bearer <jwt_token>`
 -   **Path Parameters**:
@@ -205,64 +215,58 @@ This document provides a detailed overview of the API endpoints exposed by the b
 
 ## Chat & Conversations Endpoints
 
-### 1. Send Chat Message
+### 1. Create Chat Session
 
--   **Endpoint**: `/chat/message`
+-   **Endpoint**: `/chat/sessions`
 -   **Method**: `POST`
--   **Description**: Sends a message to the conversational AI and gets a response.
+-   **Description**: Creates a new chat session for the authenticated user.
 -   **Headers**:
     -   `Authorization`: `Bearer <jwt_token>`
 -   **Request Body (JSON)**:
     ```json
     {
-      "sessionId": "<optional_session_id>",
+      "title": "Optional session title"
+    }
+    ```
+-   **Success Response (201 Created)**: the created chat session document, e.g.
+    ```json
+    {
+      "_id": "<session_id>",
+      "userId": "<user_id>",
+      "title": "New Chat",
+      "messages": [],
+      "createdAt": "2023-01-01T12:00:00.000Z",
+      "updatedAt": "2023-01-01T12:00:00.000Z"
+    }
+    ```
+
+### 2. Send Chat Message
+
+-   **Endpoint**: `/chat/sessions/:sessionId/messages`
+-   **Method**: `POST`
+-   **Description**: Sends a message within an existing chat session and gets a RAG-grounded response.
+-   **Headers**:
+    -   `Authorization`: `Bearer <jwt_token>`
+-   **Path Parameters**:
+    -   `sessionId`: The ID of the chat session.
+-   **Request Body (JSON)**:
+    ```json
+    {
       "message": "What is the capital of France?"
     }
     ```
 -   **Success Response (200 OK)**:
     ```json
     {
-      "sessionId": "<session_id>",
-      "response": "The capital of France is Paris.",
-      "sourceCitations": [
+      "message": "The capital of France is Paris.",
+      "sources": [
         {
           "documentId": "<doc_id_1>",
-          "page": 1,
-          "textSnippet": "...Paris is the capital..."
+          "filename": "example.pdf",
+          "relevanceScore": 0.87
         }
       ]
     }
-    ```
--   **Error Response (500 Internal Server Error)**:
-    ```json
-    {
-      "error": "Error processing chat message"
-    }
-    ```
-
-### 2. Get Chat History
-
--   **Endpoint**: `/chat/history/:sessionId`
--   **Method**: `GET`
--   **Description**: Retrieves the conversation history for a given session ID.
--   **Headers**:
-    -   `Authorization`: `Bearer <jwt_token>`
--   **Path Parameters**:
-    -   `sessionId`: The ID of the chat session.
--   **Success Response (200 OK)**:
-    ```json
-    [
-      {
-        "role": "user",
-        "content": "Hello, AI!",
-        "timestamp": "2023-01-01T12:00:00.000Z"
-      },
-      {
-        "role": "assistant",
-        "content": "Hi there! How can I help you today?",
-        "timestamp": "2023-01-01T12:00:05.000Z"
-      }
-    ]
     ```
 -   **Error Response (404 Not Found)**:
     ```json
@@ -271,24 +275,103 @@ This document provides a detailed overview of the API endpoints exposed by the b
     }
     ```
 
-## Analytics Endpoints
+### 3. Get All Chat Sessions
 
-### 1. Get Usage Analytics
-
--   **Endpoint**: `/analytics/usage`
+-   **Endpoint**: `/chat/sessions`
 -   **Method**: `GET`
--   **Description**: Retrieves overall usage statistics for the platform.
+-   **Description**: Retrieves all chat sessions belonging to the authenticated user.
 -   **Headers**:
     -   `Authorization`: `Bearer <jwt_token>`
 -   **Success Response (200 OK)**:
     ```json
     {
-      "totalUsers": 100,
-      "totalDocuments": 500,
-      "totalQueries": 1500,
-      "averageResponseTime": 3.2
+      "sessions": [
+        {
+          "_id": "<session_id>",
+          "title": "New Chat",
+          "createdAt": "2023-01-01T12:00:00.000Z",
+          "updatedAt": "2023-01-01T12:00:05.000Z"
+        }
+      ]
     }
     ```
 
+### 4. Get Chat History
 
+-   **Endpoint**: `/chat/sessions/:sessionId`
+-   **Method**: `GET`
+-   **Description**: Retrieves the full session, including all messages, for a given session ID.
+-   **Headers**:
+    -   `Authorization`: `Bearer <jwt_token>`
+-   **Path Parameters**:
+    -   `sessionId`: The ID of the chat session.
+-   **Success Response (200 OK)**:
+    ```json
+    {
+      "_id": "<session_id>",
+      "title": "New Chat",
+      "messages": [
+        {
+          "role": "user",
+          "content": "Hello, AI!",
+          "timestamp": "2023-01-01T12:00:00.000Z"
+        },
+        {
+          "role": "assistant",
+          "content": "Hi there! How can I help you today?",
+          "timestamp": "2023-01-01T12:00:05.000Z"
+        }
+      ]
+    }
+    ```
+-   **Error Response (404 Not Found)**:
+    ```json
+    {
+      "error": "Chat session not found"
+    }
+    ```
+
+### 5. Delete Chat Session
+
+-   **Endpoint**: `/chat/sessions/:sessionId`
+-   **Method**: `DELETE`
+-   **Description**: Deletes a chat session by its ID.
+-   **Headers**:
+    -   `Authorization`: `Bearer <jwt_token>`
+-   **Path Parameters**:
+    -   `sessionId`: The ID of the chat session.
+-   **Success Response (200 OK)**:
+    ```json
+    {
+      "success": true
+    }
+    ```
+-   **Error Response (404 Not Found)**:
+    ```json
+    {
+      "error": "Chat session not found"
+    }
+    ```
+
+### 6. Edit Chat Session Title
+
+-   **Endpoint**: `/chat/sessions/:sessionId`
+-   **Method**: `PATCH`
+-   **Description**: Updates the title of an existing chat session.
+-   **Headers**:
+    -   `Authorization`: `Bearer <jwt_token>`
+-   **Path Parameters**:
+    -   `sessionId`: The ID of the chat session.
+-   **Request Body (JSON)**:
+    ```json
+    {
+      "title": "New title"
+    }
+    ```
+-   **Success Response (200 OK)**: the updated chat session document.
+-   **Error Response (404 Not Found)**:
+    ```json
+    {
+      "error": "Chat session not found"
+    }
     ```
