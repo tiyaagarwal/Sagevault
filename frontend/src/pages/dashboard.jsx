@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import DocumentUploader from '../components/DocumentUploader';
 import DocumentLibrary from '../components/DocumentLibrary';
 import ChatInterface from '../components/ChatInterface';
@@ -39,7 +39,7 @@ const Dashboard = () => {
   };
 
   // Fetch documents from backend
-  const fetchDocuments = async () => {
+  const fetchDocuments = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -57,22 +57,22 @@ const Dashboard = () => {
       setError(err.error || 'Failed to fetch documents');
     }
     setLoading(false);
-  };
-
-  useEffect(() => {
-    fetchDocuments();
-    fetchChatSessions();
-  }, []);
+  }, [token]);
 
   // Fetch all chat sessions
-  const fetchChatSessions = async () => {
+  const fetchChatSessions = useCallback(async () => {
     try {
       const res = await apiFetch(endpoints.getChatSessions, {}, token);
       setChatSessions(res.sessions || []);
     } catch (err) {
       setError(err.error || 'Failed to fetch chat sessions');
     }
-  };
+  }, [token]);
+
+  useEffect(() => {
+    fetchDocuments();
+    fetchChatSessions();
+  }, [fetchDocuments, fetchChatSessions]);
 
   // Delete a chat session
   const handleDeleteSession = async (sessionId) => {
