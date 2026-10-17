@@ -27,7 +27,7 @@ const getVectorStore = async () => {
 };
 
 // Add document chunks to faiss db
-const addDocumentChunks = async (chunks) => {
+const addDocumentChunks = async (chunks, filename) => {
   let vectorStore = await getVectorStore();
 
   const documents = chunks.map(chunk => chunk.content);
@@ -35,7 +35,7 @@ const addDocumentChunks = async (chunks) => {
   const metadatas = chunks.map(chunk => ({
     documentId: chunk.documentId.toString(),
     position: chunk.position,
-    filename: chunk.filename // Add filename to metadata
+    filename // Shown as the source of an answer
   }));
 
   // Prepare documents in Langchain format
@@ -61,24 +61,33 @@ const addDocumentChunks = async (chunks) => {
   await vectorStore.save(directory);
 };
 
-// Query similar chunks
+// Query the n chunks most similar to the query among the user's own documents
 const querySimilarChunks = async (query, userId, n = 5) => {
-  const vectorStore = await getVectorStore();
-
-  const resultsWithScore = await vectorStore.similaritySearchWithScore(query, n);
-  console.log(resultsWithScore)
-  const results = resultsWithScore.map(([doc, score]) => {
-    doc.score = score; // Attach score to the document object
-    return doc;
-  });
-
-  // Filter results by userId
-  const userDocuments = await Document.find({ userId: userId });
+  const userDocuments = await Document.find({ userId: userId }).select('_id');
+  if (userDocuments.length === 0) {
+    return [];
+  }
   const userDocumentIds = new Set(userDocuments.map(doc => doc._id.toString()));
 
-  return results.filter(doc => userDocumentIds.has(doc.metadata.documentId));
+  const vectorStore = await getVectorStore();
+  if (!vectorStore) {
+    return []; // Nothing has been uploaded yet
+  }
 
- };
+  // The index is shared by every user and still holds embeddings of deleted
+  // documents, so search all of it and then keep the user's top n. Taking the
+  // global top n first would return nothing whenever other users' chunks rank higher.
+  const total = vectorStore.index.ntotal();
+  const resultsWithScore = await vectorStore.similaritySearchWithScore(query, total);
+
+  return resultsWithScore
+    .filter(([doc]) => userDocumentIds.has(doc.metadata.documentId))
+    .slice(0, n)
+    .map(([doc, score]) => {
+      doc.score = score; // Attach score to the document object
+      return doc;
+    });
+};
 
 
 

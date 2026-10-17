@@ -23,6 +23,10 @@ const sendMessage = async (req, res) => {
     const { sessionId } = req.params;
     const { message } = req.body;
 
+    if (typeof message !== 'string' || !message.trim()) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
     const session = await ChatSession.findOne({
       _id: sessionId,
       userId: req.user._id
