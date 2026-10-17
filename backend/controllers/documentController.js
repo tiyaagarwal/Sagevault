@@ -7,10 +7,12 @@ const { PDFLoader } = require('@langchain/community/document_loaders/fs/pdf');
 const { DocxLoader } = require('@langchain/community/document_loaders/fs/docx');
 
 const uploadDocument = async (req, res) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  let document;
   try {
-    if (!req.file) {
-      return res.status(400).json({ error: 'No file uploaded' });
-    }
 
     let fileContent;
     const fileExtension = path.extname(req.file.originalname).toLowerCase();
@@ -28,7 +30,7 @@ const uploadDocument = async (req, res) => {
     }
 
     // Create new document
-    const document = new Document({
+    document = new Document({
       userId: req.user._id,
       filename: req.file.originalname,
       content: fileContent,
@@ -51,13 +53,8 @@ const uploadDocument = async (req, res) => {
     // Save chunks to MongoDB
     const insertedChunks = await DocumentChunk.insertMany(documentChunks);
 
-    // Store embeddings in ChromaDB
-    await addDocumentChunks(insertedChunks);
-
-
-
-    // Clean up uploaded file
-    await fs.unlink(req.file.path);
+    // Store embeddings in the FAISS index
+    await addDocumentChunks(insertedChunks, document.filename);
 
     res.status(201).json({
       id: document._id,
@@ -67,7 +64,17 @@ const uploadDocument = async (req, res) => {
     });
   } catch (error) {
     console.error('Upload error:', error);
+    // Don't leave a document behind that can never be retrieved in chat
+    if (document) {
+      await Promise.allSettled([
+        Document.deleteOne({ _id: document._id }),
+        DocumentChunk.deleteMany({ documentId: document._id }),
+      ]);
+    }
     res.status(500).json({ error: 'Error uploading document' });
+  } finally {
+    // Clean up uploaded file, whether or not processing succeeded
+    await fs.unlink(req.file.path).catch(() => {});
   }
 };
 
