@@ -51,7 +51,7 @@ const uploadDocument = async (req, res) => {
     // Save chunks to MongoDB
     const insertedChunks = await DocumentChunk.insertMany(documentChunks);
 
-    // Store embeddings in ChromaDB
+    // Store embeddings in the FAISS vector store
     await addDocumentChunks(insertedChunks);
 
 

@@ -16,7 +16,7 @@ const documentChunkSchema = new mongoose.Schema({
   },
   embedding: {
     type: [Number],
-    required: false // We'll store embeddings in ChromaDB
+    required: false // We'll store embeddings in the FAISS vector store
   }
 });
 

@@ -4,7 +4,7 @@ const {Document} = require('../models/Document');
 const { embeddingsModel } = require('./langchain');
 require('dotenv').config();
 
-// Initialize ChromaDB client with Langchain's Chroma
+// Initialize a local FAISS vector store via Langchain's FaissStore
 const getVectorStore = async () => {
   const directory = process.env.FAISS_DB_PATH || './faissdb';
   // Ensure the directory exists
